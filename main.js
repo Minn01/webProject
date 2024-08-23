@@ -40,40 +40,7 @@ document.addEventListener("keyup", event => {
     }
 });
 
-async function retrieveRandomWords(wordNumber) {
-    try {
-        const response = await fetch(`https://random-word-api.herokuapp.com/word?number=${wordNumber}`)
-        const data = await data.json();
-        console.log(data);
-    } catch (error) {
-        window.alert("Error fetching random words");
-        console.log(error);
-    }
-}
 
-// function to fetch random words from API (datamuse.com / Datamuse)
-async function retrieveRelatedWords(wordNumber, numberOfWordsLoaded, topicWord) {
-    try {
-        // fetching data from api
-        const response = await fetch(`https://api.datamuse.com/words?ml=${topicWord}&max=${numberOfWordsLoaded}&f=1&md=f`);
-        // fetching json data
-        const data = await response.json();
-        console.log(data);
-
-        // grabbing only the words from the json file
-        let wordsList = data.map(word => {
-            return word["word"];
-        });
-
-        // using a shuffling algorithm
-        let outputList = randomShuffle(wordsList.slice(0, wordNumber));
-        return outputList;
-
-    } catch (error) {
-        window.alert("Error fetching related words");
-        console.log(error);
-    }
-}
 
 // VARIABLES HERE (any new ones should be written here if global-space variables)
 let wordPointerIndex = 0;
@@ -83,6 +50,57 @@ let wordsList = [];
 const start_btn = document.getElementById("start_btn");
 const type_area = document.getElementById("type_area");
 
+
+async function fetchTopics(numOfTopics) {
+    try {
+        const response = await fetch(`https://random-word-api.herokuapp.com/word?number=${numOfTopics}`);
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.log("ERROR FACED WHEN FETCHING TOPIC");
+        console.log(error);
+    }
+}
+
+async function retrieveRandomWords(topics, numOfWordsToFetch, numOfWordsToRetrieve) {
+    try {
+        const promises = topics.map(topicWord => {
+            return fetchRelatedWordsForTopic(topicWord, numOfWordsToFetch);
+        });
+
+        const resultsOfPromises = await Promise.all(promises);
+
+        let otpList = [];
+
+        for (result of resultsOfPromises) {
+            for (word of result) {
+                otpList.push(word);
+            }
+        }
+
+
+        return randomShuffle(otpList).slice(0, numOfWordsToRetrieve);
+    } catch (error) {
+        console.log("ERROR FACED WHEN RETRIEVING RELATED WORDS WITH TOPICS");
+        console.log(error);
+    }
+}
+
+async function fetchRelatedWordsForTopic(topic, numOfWords) {
+    try {
+        const response = await fetch(`https://api.datamuse.com/words?ml=${topic}&max=${numOfWords}&f=1&md=f`);
+        const data = await response.json();
+
+        let wordsList = data.map(word => {
+            return word["word"];
+        });
+
+        return wordsList;
+    } catch (error) {
+        console.log("ERROR FACED WHEN FETCHING RELATED WORDS");
+        console.log(error);
+    }
+}
 
 function switchDisplays(typingOn) {
     if (typingOn) {
@@ -120,9 +138,9 @@ function typingHandler(event) {
 
 // onclick function for the start button
 async function start_typing() {
-    wordsList = await retrieveRelatedWords(10, 100, "animal");
+    let topics = await fetchTopics(5);
+    wordsList = await retrieveRandomWords(topics, 10, 10);
     console.log(wordsList);
-
     sentence = wordsList.join(" ");
     type_area.textContent = sentence;
 
@@ -130,3 +148,10 @@ async function start_typing() {
 
     document.addEventListener('keydown', typingHandler);
 }
+
+// async function main() {
+//     let topics = await fetchTopics(5);
+//     console.log(retrieveRandomWords(topics, 10, 10));
+// }
+
+// main()

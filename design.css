@@ -11,14 +11,14 @@ body {
 #type_area {
     display: none;
     font-size: 2em;
-    border: 2px solid white;
+    border: 2px solid rgb(255, 255, 255);
     color: white;
     width: 75vw;
     height: 20vh;
-    justify-content: center;
+    justify-content: left;
     white-space: pre;
     margin-bottom: 10vh;
-    overflow: hidden;
+    overflow-wrap: break-word;
 }
 
 .correctWordColor {
@@ -90,4 +90,10 @@ body {
     color: white;
     background-color: rgb(18, 18, 18);
     margin-bottom: 25vh;
+    transition: background-color 100ms ease-in-out, color 100ms ease-in-out;
+}
+
+#start-btn:active {
+    background-color: white;
+    color: black;
 }

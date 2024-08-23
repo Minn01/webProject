@@ -1,77 +1,34 @@
-document.addEventListener("keydown", event => {
-    const key = document.getElementById("k" + event.key.toUpperCase());
-    
-    if (key) {
-        key.classList.add("active");
-    }
-});
-
-document.addEventListener("keyup", event => {
-    const key = document.getElementById("k" + event.key.toUpperCase());
-    
-    if (key) {
-        key.classList.remove("active");
-    }
-});
-
-
-
-let wordNumber = 10;
-
-async function retrieveRandomWords() {
+async function retrieveRandomWords(wordNumber) {
     try {
-        const response = await fetch(`https://api.datamuse.com/words?ml=thing&max=${wordNumber}&f=1&md=f`);
+        const response = await fetch(`https://random-word-api.herokuapp.com/word?number=${wordNumber}`)
         const data = await response.json();
-        return data.map(word => {
-            return word["word"];
-        });
+        console.log(data);
     } catch (error) {
-        window.alert("Error fetching random word");
+        window.alert("Error fetching random words");
         console.log(error);
     }
 }
 
-let sentenceLists = [];
-const start_btn = document.getElementById("start_btn");
+// function to fetch random words from API (datamuse.com / Datamuse)
+async function retrieveRelatedWords(wordNumber, numberOfWordsLoaded, topicWord) {
+    try {
+        // fetching data from api
+        const response = await fetch(`https://api.datamuse.com/words?ml=${topicWord}&max=${numberOfWordsLoaded}&f=1&md=f`);
+        // fetching json data
+        const data = await response.json();
+        console.log(data);
 
-retrieveRandomWords().then(wordsArray => {
-    console.log("Retrieved random words:", wordsArray);
-    sentenceLists = [...wordsArray];
+        // grabbing only the words from the json file
+        let wordsList = data.map(word => {
+            return word["word"];
+        });
 
-    const type_area = document.getElementById("type_area");
+        // using a shuffling algorithm
+        let outputList = randomShuffle(wordsList.slice(0, wordNumber));
+        return outputList;
 
-    let wordPointerIndex = 0;
-    let currentSentenceIndex = 0;
-
-    function start_typing() {
-        start_btn.style.display = "none";
-        type_area.style.display = "flex";
-        loadNextSentence();
+    } catch (error) {
+        window.alert("Error fetching related words");
+        console.log(error);
     }
-
-    function loadNextSentence() {
-        wordPointerIndex = 0;
-        let sentence = sentenceLists[currentSentenceIndex].toLowerCase();
-        let wordList = sentence.split("");
-        
-        type_area.textContent = sentence;
-
-        document.removeEventListener('keydown', typingHandler); 
-        document.addEventListener('keydown', typingHandler); 
-        
-        function typingHandler(event) {
-            if (event.key === wordList[wordPointerIndex]) {
-                console.log(`${event.key} : ${wordList[wordPointerIndex]}`);
-                wordPointerIndex++;
-                type_area.innerHTML = `<span class='colored'>${sentence.slice(0, wordPointerIndex)}</span>${sentence.slice(wordPointerIndex)}`;
-                
-                if (wordPointerIndex == wordList.length) {
-                    currentSentenceIndex = (currentSentenceIndex + 1) % sentenceLists.length;
-                    setTimeout(loadNextSentence, 100); 
-                }
-            } else {
-                type_area.innerHTML = `<span class='colored'>${sentence.slice(0, wordPointerIndex)}</span><span style="color: red;">${event.key}</span>${sentence.slice(wordPointerIndex + 1)}`;
-            }
-        }
-    }
-});
+}
