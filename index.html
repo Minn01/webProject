@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Typing Ace Official Website</title>
+    <link rel="stylesheet" href="design.css">
+</head>
+<body>
+    <!-- temporary button to load text to start typing -->
+    <button id="start_btn" onclick="start_typing()">START</button>
+    <div id="type_area"></div>
+
+    <!-- The keyboard display -->
+    <div id="keyboard">
+        <div id="upper_row">
+            <div class="key" id="kQ">Q</div>
+            <div class="key" id="kW">W</div>
+            <div class="key" id="kE">E</div>
+            <div class="key" id="kR">R</div>
+            <div class="key" id="kT">T</div>
+            <div class="key" id="kY">Y</div>
+            <div class="key" id="kU">U</div>
+            <div class="key" id="kI">I</div>
+            <div class="key" id="kO">O</div>
+            <div class="key" id="kP">P</div>
+            <div class="key" id="k[">[</div>
+            <div class="key" id="k]">]</div>
+            <div class="key" id="k\">\</div>
+        </div>
+
+        <div id="middle_row">
+            <div class="key" id="kA">A</div>
+            <div class="key" id="kS">S</div>
+            <div class="key" id="kD">D</div>
+            <div class="key" id="kF">F</div>
+            <div class="key" id="kG">G</div>
+            <div class="key" id="kH">H</div>
+            <div class="key" id="kJ">J</div>
+            <div class="key" id="kK">K</div>
+            <div class="key" id="kL">L</div>
+            <div class="key" id="k;">;</div>
+            <div class="key" id="k'">'</div>
+        </div>
+
+        <div id="lower_row">
+            <div class="key" id="kZ">Z</div>
+            <div class="key" id="kX">X</div>
+            <div class="key" id="kC">C</div>
+            <div class="key" id="kV">V</div>
+            <div class="key" id="kB">B</div>
+            <div class="key" id="kN">N</div>
+            <div class="key" id="kM">M</div>
+            <div class="key" id="k,">,</div>
+            <div class="key" id="k.">.</div>
+            <div class="key" id="k/">/</div>
+        </div>
+
+        <div class="key" id="space_bar"></div>
+    </div>
+    <script src="main.js"></script>
+</body>
+</html>

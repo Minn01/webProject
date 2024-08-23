@@ -1,0 +1,77 @@
+document.addEventListener("keydown", event => {
+    const key = document.getElementById("k" + event.key.toUpperCase());
+    
+    if (key) {
+        key.classList.add("active");
+    }
+});
+
+document.addEventListener("keyup", event => {
+    const key = document.getElementById("k" + event.key.toUpperCase());
+    
+    if (key) {
+        key.classList.remove("active");
+    }
+});
+
+
+
+let wordNumber = 10;
+
+async function retrieveRandomWords() {
+    try {
+        const response = await fetch(`https://api.datamuse.com/words?ml=thing&max=${wordNumber}&f=1&md=f`);
+        const data = await response.json();
+        return data.map(word => {
+            return word["word"];
+        });
+    } catch (error) {
+        window.alert("Error fetching random word");
+        console.log(error);
+    }
+}
+
+let sentenceLists = [];
+const start_btn = document.getElementById("start_btn");
+
+retrieveRandomWords().then(wordsArray => {
+    console.log("Retrieved random words:", wordsArray);
+    sentenceLists = [...wordsArray];
+
+    const type_area = document.getElementById("type_area");
+
+    let wordPointerIndex = 0;
+    let currentSentenceIndex = 0;
+
+    function start_typing() {
+        start_btn.style.display = "none";
+        type_area.style.display = "flex";
+        loadNextSentence();
+    }
+
+    function loadNextSentence() {
+        wordPointerIndex = 0;
+        let sentence = sentenceLists[currentSentenceIndex].toLowerCase();
+        let wordList = sentence.split("");
+        
+        type_area.textContent = sentence;
+
+        document.removeEventListener('keydown', typingHandler); 
+        document.addEventListener('keydown', typingHandler); 
+        
+        function typingHandler(event) {
+            if (event.key === wordList[wordPointerIndex]) {
+                console.log(`${event.key} : ${wordList[wordPointerIndex]}`);
+                wordPointerIndex++;
+                type_area.innerHTML = `<span class='colored'>${sentence.slice(0, wordPointerIndex)}</span>${sentence.slice(wordPointerIndex)}`;
+                
+                if (wordPointerIndex == wordList.length) {
+                    currentSentenceIndex = (currentSentenceIndex + 1) % sentenceLists.length;
+                    setTimeout(loadNextSentence, 100); 
+                }
+            } else {
+                type_area.innerHTML = `<span class='colored'>${sentence.slice(0, wordPointerIndex)}</span><span style="color: red;">${event.key}</span>${sentence.slice(wordPointerIndex + 1)}`;
+            }
+        }
+    }
+});
