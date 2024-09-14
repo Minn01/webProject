@@ -7,8 +7,11 @@
     <link rel="stylesheet" href="design.css">
 </head>
 <body>
+    <!-- the part that displays the results -->
+     <div id="perf_display"></div>
+
     <!-- temporary button to load text to start typing -->
-    <button id="start_btn" onclick="start_typing()">START</button>
+    <button id="start_btn">START</button>
     <div id="type_area"></div>
 
     <!-- The keyboard display -->
@@ -58,6 +61,6 @@
 
         <div class="key" id="space_bar"></div>
     </div>
-    <script src="main.js"></script>
+    <script type="module" src="main.js"></script>
 </body>
 </html>

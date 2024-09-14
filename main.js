@@ -2,14 +2,8 @@
 // If any changes are made, add documentation
 
 // IMPORTS
-function randomShuffle(lis) {
-    for (let i = lis.length-1; i > 0; i--) {
-        let rd_index = Math.floor(Math.random() * (i+1));
-        [lis[rd_index], lis[i]] = [lis[i], lis[rd_index]];
-    }
-
-    return lis;
-}
+import api_key from './apikey.js'
+import CommonEnglishWords from './wordLibraray.js';
 
 // key event listeners for the keyboard visual
 document.addEventListener("keydown", event => {
@@ -47,58 +41,29 @@ let wordPointerIndex = 0;
 let sentence = "";
 let typingOn = false;
 let wordsList = [];
+let usingAPI = false;
+let startedTypingTime = 0;
+let endedTypingTime = 0;
+let numOfMistakes = 0;
+let mistakeWord = 0;
+let alreadyMistaken = false;
+let startedTyping = false;
 const start_btn = document.getElementById("start_btn");
 const type_area = document.getElementById("type_area");
 
-
-async function fetchTopics(numOfTopics) {
+// Retrieves random words from wordnik api
+async function retrieveRandomWords(numOfWords, minWordLength, maxWordLength, wordlevel) {
     try {
-        const response = await fetch(`https://random-word-api.herokuapp.com/word?number=${numOfTopics}`);
+        const response = await fetch(`https://api.wordnik.com/v4/words.json/randomWords?hasDictionaryDef=true&minCorpusCount=1&minDictionaryCount=${wordlevel}&maxDictionaryCount=-1&minLength=${minWordLength}&maxLength=${maxWordLength}&limit=${numOfWords}&api_key=${api_key}`);
         const data = await response.json();
-        return data;
-    } catch (error) {
-        console.log("ERROR FACED WHEN FETCHING TOPIC");
-        console.log(error);
-    }
-}
-
-async function retrieveRandomWords(topics, numOfWordsToFetch, numOfWordsToRetrieve) {
-    try {
-        const promises = topics.map(topicWord => {
-            return fetchRelatedWordsForTopic(topicWord, numOfWordsToFetch);
+        // mapping only the words
+        let wordList = data.map(objFormat => {
+            return objFormat.word;
         });
-
-        const resultsOfPromises = await Promise.all(promises);
-
-        let otpList = [];
-
-        for (result of resultsOfPromises) {
-            for (word of result) {
-                otpList.push(word);
-            }
-        }
-
-
-        return randomShuffle(otpList).slice(0, numOfWordsToRetrieve);
+        console.log(wordList);
+        return wordList;
     } catch (error) {
-        console.log("ERROR FACED WHEN RETRIEVING RELATED WORDS WITH TOPICS");
-        console.log(error);
-    }
-}
-
-async function fetchRelatedWordsForTopic(topic, numOfWords) {
-    try {
-        const response = await fetch(`https://api.datamuse.com/words?ml=${topic}&max=${numOfWords}&f=1&md=f`);
-        const data = await response.json();
-
-        let wordsList = data.map(word => {
-            return word["word"];
-        });
-
-        return wordsList;
-    } catch (error) {
-        console.log("ERROR FACED WHEN FETCHING RELATED WORDS");
-        console.log(error);
+        console.log(`error fetching data : ${error}`)
     }
 }
 
@@ -112,13 +77,30 @@ function switchDisplays(typingOn) {
     }
 }
 
+// calculates word per minute
+function calculatePerformance(startedTypingTime, endedTypingTime) {
+    let timeTakenInSeconds = (endedTypingTime - startedTypingTime)/1000
+    let timeTakenInMinutes = timeTakenInSeconds / 60;
+    let totalWords = sentence.length / 5; // it's usually divided by 5
+    let wpm = totalWords / timeTakenInMinutes;
+    
+    return [wpm, timeTakenInSeconds, timeTakenInMinutes, totalWords];
+}
+
 // Function to handle the checks for typing
 function typingHandler(event) {
     // console.log(`${event.key} : ${sentence[wordPointerIndex]}`);
 
+    if (!startedTyping) {
+        startedTyping = true;
+        console.log('STARTED TYPING');
+        startedTypingTime = performance.now();
+    }
+
     // key check with actual sentence
     if (event.key == sentence[wordPointerIndex]) {
         wordPointerIndex++;
+        alreadyMistaken = false;
         type_area.innerHTML = `<span class='correctWordColor'>${sentence.slice(0, wordPointerIndex)}</span>${sentence.slice(wordPointerIndex)}`;
     } else {
         type_area.innerHTML = 
@@ -126,6 +108,13 @@ function typingHandler(event) {
             <span class='correctWordColor'>${sentence.slice(0, wordPointerIndex)}</span>
             <span class='wrongWordColor'>${sentence[wordPointerIndex]}</span>${sentence.slice(wordPointerIndex+1)}
         `;
+
+        if (!alreadyMistaken) {
+            mistakeWord = event.key;
+            alreadyMistaken = true;
+            numOfMistakes++;
+        } 
+
     }
 
     // end check
@@ -133,25 +122,44 @@ function typingHandler(event) {
         switchDisplays(typingOn=false);
         wordPointerIndex = 0;
         document.removeEventListener('keydown', typingHandler);
+        endedTypingTime = performance.now();
+
+        let typiing_performance = calculatePerformance(startedTypingTime, endedTypingTime);
+
+        console.log(`time taken in seconds: ${typiing_performance[1]}`);
+        console.log(`time taken in minutes : ${typiing_performance[2]}`);
+        console.log(`totalWords : ${typiing_performance[3]}`);
+        console.log(`WPM : ${typiing_performance[0]}`);
+
+        startedTyping = false;
     }
 }
 
 // onclick function for the start button
 async function start_typing() {
-    let topics = await fetchTopics(5);
-    wordsList = await retrieveRandomWords(topics, 10, 10);
+    if (usingAPI) {
+        wordsList = await retrieveRandomWords(10, 2, 7, 3);
+    } else {
+        wordsList = CommonEnglishWords.getCommonWordsRandom(10)
+    }
+    
     console.log(wordsList);
     sentence = wordsList.join(" ");
     type_area.textContent = sentence;
 
-    switchDisplays(typingOn=true);
+    console.log(sentence.length);
 
+    numOfMistakes = 0;
+    alreadyMistaken = false;
+    switchDisplays(typingOn=true);
     document.addEventListener('keydown', typingHandler);
 }
 
+start_btn.onclick = start_typing;
+
 // async function main() {
-//     let topics = await fetchTopics(5);
-//     console.log(retrieveRandomWords(topics, 10, 10));
+//     let randomWords = await retrieveRandomWords(10, 2, 7, 3);
+//     console.log(randomWords);
 // }
 
 // main()
