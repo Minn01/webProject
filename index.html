@@ -7,12 +7,69 @@
     <link rel="stylesheet" href="design.css">
 </head>
 <body>
+    <!-- the part that shows the settings for the typing -->
+    <div id="customizer" style="display: none;">
+        <div id="constraint-options">
+            <!-- <i></i> -->
+            <button id="words-btn"></button>
+            <!-- <i></i> -->
+            <button id="time-btn"></button>
+        </div>
+
+        <div id="inclusion-options">
+            <button id="words-btn"></button>
+            <button id="words-btn"></button>
+        </div>
+
+        <div id="selected-options">
+
+        </div>
+    </div>
+
     <!-- the part that displays the results -->
-     <div id="perf_display"></div>
+     <div id="perf_display">
+        <div id="square_for_now"></div>
+        <div id="results">
+            <div id="main_results">
+                <div id="wpm_result" class="circle">
+                    <h2>WPM</h2>
+                    <h1 id="wpm_num">100</h1>
+                </div>
+                <div class="circle">
+                    <h2>Accuracy</h2>
+                    <h1 id="accuracy_num">100</h1>
+                </div>
+            </div>
+            <div id="details">
+                <div id="two_things">
+                    <div id="consistency">
+                        <h3>Consistency</h3>
+                        <h1>100</h1>
+                    </div>
+                    <div id="learning_rate">
+                        <h3>Learning Rate</h3>
+                        <h1>100</h1>
+                    </div>
+                </div>
+                <div id="weak_words">
+                    <h3>Weak Words</h3>
+                    <table id="weak_words_tb">
+                        <tr>
+                            <td>Q</td>
+                            <td>W</td>
+                            <td>E</td>
+                            <td>R</td>
+                            <td>T</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+     </div>
 
     <!-- temporary button to load text to start typing -->
     <button id="start_btn">START</button>
-    <div id="type_area"></div>
+    <div id="type_area"></div> -->
 
     <!-- The keyboard display -->
     <div id="keyboard">

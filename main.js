@@ -39,7 +39,6 @@ document.addEventListener("keyup", event => {
 // VARIABLES HERE (any new ones should be written here if global-space variables)
 let wordPointerIndex = 0;
 let sentence = "";
-let typingOn = false;
 let wordsList = [];
 let usingAPI = false;
 let startedTypingTime = 0;
@@ -50,6 +49,10 @@ let alreadyMistaken = false;
 let startedTyping = false;
 const start_btn = document.getElementById("start_btn");
 const type_area = document.getElementById("type_area");
+const perf_display = document.getElementById("perf_display");
+const keyboard_doc = document.getElementById("keyboard");
+const wpm_num = document.getElementById("wpm_num");
+const accuracy_num = document.getElementById("accuracy_num");
 
 // Retrieves random words from wordnik api
 async function retrieveRandomWords(numOfWords, minWordLength, maxWordLength, wordlevel) {
@@ -67,14 +70,40 @@ async function retrieveRandomWords(numOfWords, minWordLength, maxWordLength, wor
     }
 }
 
-function switchDisplays(typingOn) {
-    if (typingOn) {
+function switchDisplays(displayMode) {
+    if (displayMode == 0) {
         start_btn.style.display = "none";
         type_area.style.display = "flex";
-    } else {
+    } else if (displayMode == 1) {
         start_btn.style.display = "inline-block";
         type_area.style.display = "none";
+    } else if (displayMode == 2) {
+        type_area.style.display = "none";
+        keyboard_doc.style.display = "none"
+        perf_display.style.display = "flex"
     }
+}
+
+function endTyping() {
+    // Records the end time
+    endedTypingTime = performance.now();
+    
+    switchDisplays(2);
+
+    let typingPerformance = calculatePerformance(startedTypingTime, endedTypingTime);
+    let wpm = Math.round(typingPerformance[0])
+    let accuracy = Math.round(typingPerformance[1])
+    wpm_num.textContent = wpm;
+    accuracy_num.textContent = accuracy;
+
+    // Resets pointer to the beginning
+    wordPointerIndex = 0;
+
+    // Removes the key listener for any typing inputs 
+    document.removeEventListener('keydown', typingHandler);
+
+    // Resetting the value 
+    startedTyping = false;
 }
 
 // calculates word per minute
@@ -83,8 +112,10 @@ function calculatePerformance(startedTypingTime, endedTypingTime) {
     let timeTakenInMinutes = timeTakenInSeconds / 60;
     let totalWords = sentence.length / 5; // it's usually divided by 5
     let wpm = totalWords / timeTakenInMinutes;
+
+    let accuracy = ((sentence.length - numOfMistakes) / sentence.length) * 100
     
-    return [wpm, timeTakenInSeconds, timeTakenInMinutes, totalWords];
+    return [wpm, accuracy];
 }
 
 // Function to handle the checks for typing
@@ -93,7 +124,6 @@ function typingHandler(event) {
 
     if (!startedTyping) {
         startedTyping = true;
-        console.log('STARTED TYPING');
         startedTypingTime = performance.now();
     }
 
@@ -114,24 +144,11 @@ function typingHandler(event) {
             alreadyMistaken = true;
             numOfMistakes++;
         } 
-
     }
 
     // end check
     if (wordPointerIndex == sentence.length) {
-        switchDisplays(typingOn=false);
-        wordPointerIndex = 0;
-        document.removeEventListener('keydown', typingHandler);
-        endedTypingTime = performance.now();
-
-        let typiing_performance = calculatePerformance(startedTypingTime, endedTypingTime);
-
-        console.log(`time taken in seconds: ${typiing_performance[1]}`);
-        console.log(`time taken in minutes : ${typiing_performance[2]}`);
-        console.log(`totalWords : ${typiing_performance[3]}`);
-        console.log(`WPM : ${typiing_performance[0]}`);
-
-        startedTyping = false;
+        endTyping()
     }
 }
 
@@ -143,23 +160,13 @@ async function start_typing() {
         wordsList = CommonEnglishWords.getCommonWordsRandom(10)
     }
     
-    console.log(wordsList);
     sentence = wordsList.join(" ");
     type_area.textContent = sentence;
 
-    console.log(sentence.length);
-
     numOfMistakes = 0;
     alreadyMistaken = false;
-    switchDisplays(typingOn=true);
+    switchDisplays(0);
     document.addEventListener('keydown', typingHandler);
 }
 
 start_btn.onclick = start_typing;
-
-// async function main() {
-//     let randomWords = await retrieveRandomWords(10, 2, 7, 3);
-//     console.log(randomWords);
-// }
-
-// main()
