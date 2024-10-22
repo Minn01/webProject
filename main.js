@@ -47,9 +47,12 @@ let numOfMistakes = 0;
 let alreadyMistaken = false;
 let startedTyping = false;
 let timeOfWords = []; // this stores time it takes for pressing a key
+let wpmOverTime = [];
+let accOvertime = []
 let performanceOverTime = [] // this stores wpm and accuracy (in seconds)
 let countingInterval = null; // suppose to store a setInterval() counting seconds
 let timeOfFirstWordTyped = 0;
+const nonoWords = new Set(['Shift', 'BackSpace', 'Enter', 'Tab', 'Alt', 'Meta', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'ArrowRight']);
 
 // Documents
 const start_btn = document.getElementById("start_btn");
@@ -115,7 +118,7 @@ function endTyping() {
     // Picking the 5 weakest words among the key press durations
     const weakWords = pickWeakWords(timeOfWords);
 
-    const consistencyScore = processConsistency(performanceOverTime, timeOfWords);
+    const consistencyScore = processConsistencyScore(wpmOverTime, accOvertime, timeOfWords);
     
     // Making the actual change of numbers to what is being displayed
     displayPerformance(typingPerformance, weakWords, consistencyScore);
@@ -151,10 +154,11 @@ function displayPerformance(typingPerformance, weakWords, consistencyScore) {
 
 function countData() {
     // this function repeats second by second
-    let typing_performance = calculatePerformance(startedTypingTime, performance.now(), wordPointerIndex+1);
+    let [wpmPerformance, accPerformance] = calculatePerformance(startedTypingTime, performance.now(), wordPointerIndex+1);
 
     // the data is stored in a list
-    performanceOverTime.push(typing_performance);
+    wpmOverTime.push(wpmPerformance);
+    accOvertime.push(accPerformance);
 }
 
 function pickWeakWords(keyTime) {
@@ -177,36 +181,55 @@ function pickWeakWords(keyTime) {
       return weakWords;
 }
 
-function processAverages(performanceOverTime, keyPressDurations) {
-    const [wpmSum, accuracySum] = performanceOverTime.reduce(
-        ([wSum, accSum], [wpm, accuracy]) => [wSum + wpm, accSum + accuracy]
-    );
+// This function is meant to process IQR 
+function findInterQuartileRange(lis, sortIdx=0, needsSortIdx=false) {
+    console.log(`needsSortIdx : ${needsSortIdx}`);
+    console.log(`sortIdx : ${sortIdx}`);
+    
+    if (needsSortIdx) {
+        lis.sort((a, b) => {
+            return b[sortIdx] - a[sortIdx];
+        });
+    } else {
+        lis.sort((a, b) => {
+            return b - a;
+        });
+    }
 
-    return [
-        wpmSum / performanceOverTime.length,
-        accuracySum / performanceOverTime.length,
-    ];
-}
-
-function findInterQuartileRange(keyPressDurations) {
+    console.log(lis);
+    
     function median(lis) {
         const mid = Math.floor(lis.length / 2);
-        if (lis.length % 2 === 0) {
-            return (lis[mid - 1] + lis[mid]) / 2; 
+
+        if (needsSortIdx) {
+            if (lis.length % 2 === 0) {
+                console.log((lis[mid - 1][sortIdx] + lis[mid][sortIdx]) / 2);
+                return (lis[mid - 1][sortIdx] + lis[mid][sortIdx]) / 2; 
+            } else {
+                console.log(lis[mid][sortIdx]);
+                return lis[mid][sortIdx];
+            }
         } else {
-            return lis[mid];
+            if (lis.length % 2 === 0) {
+                console.log((lis[mid - 1] + lis[mid]) / 2);
+                return (lis[mid - 1] + lis[mid]) / 2; 
+            } else {
+                console.log(lis[mid]);
+                return lis[mid];
+            }
         }
     }
 
-    const mid = Math.floor(keyPressDurations.length / 2);
+    const mid = Math.floor(lis.length / 2);
+    console.log(mid);
 
     let lowerHalf, upperHalf;
-    if (keyPressDurations.length % 2 === 0) {
-        lowerHalf = keyPressDurations.slice(mid);    // Lower half
-        upperHalf = keyPressDurations.slice(0, mid); // Upper half
+    if (lis.length % 2 === 0) {
+        lowerHalf = lis.slice(mid);    // Lower half
+        upperHalf = lis.slice(0, mid); // Upper half
     } else {
-        lowerHalf = keyPressDurations.slice(mid+1);    // Lower half (exclude the median)
-        upperHalf = keyPressDurations.slice(0, mid);   // Upper half (exclude the median)
+        lowerHalf = lis.slice(mid+1);    // Lower half (exclude the median)
+        upperHalf = lis.slice(0, mid);   // Upper half (exclude the median)
     }
 
     const [q1, q3] = [median(lowerHalf), median(upperHalf)];
@@ -215,61 +238,96 @@ function findInterQuartileRange(keyPressDurations) {
     return [(q1 - (1.5*iqr)), (q3 + (1.5*iqr))];
 }
 
-// This function is meant to process KPD by handling outliers (IQR method)
-function processKPDConsistency(keyPressDurations) {
-    const [lowerBound, upperBound] = findInterQuartileRange(keyPressDurations);
-    
-    // Calculating average key press durations
-    const keyPressDurationSum = keyPressDurations.reduce(
-        (durationSum, [key, time]) => {
-            if (!(time < lowerBound || time > upperBound)) {
-                return durationSum + time;
+function processAverage(lis, lowerBound, upperBound, isMultiDimensional=false, index=0) {
+    let sumOfElements = 0;
+    let n = 0;
+
+    if (isMultiDimensional) {
+        lis.forEach(
+            (element) => {
+                if (!(element[index] < lowerBound || element[index] > upperBound)) {
+                    n++;
+                    sumOfElements += element[index];
+                }
             }
-        }, 0
-    );
-
-    const keyPressDurationAvg = keyPressDurationSum / keyPressDurations.length;
-    
-    // Calculating the upper part of the standard deviation equation for key press durations
-    const squaredDeviationSumForKPdurations = keyPressDurations.reduce(
-        (SDSkeyPressDurations, [key, time]) => {
-            if (!(time < lowerBound || time > upperBound)) {
-                return SDSkeyPressDurations + ((time-keyPressDurationAvg)**2)
+        );
+    } else {
+        lis.forEach(
+            (element) => {
+                if (!(element < lowerBound || element > upperBound)) {
+                    n++;
+                    sumOfElements += element;
+                }
             }
-        }, 0
-    );
-
-    console.log(squaredDeviationSumForKPdurations);
-    const keyPressDurationStd = Math.sqrt(squaredDeviationSumForKPdurations / keyPressDurations.length);
-    
-    return (1 - (keyPressDurationStd / keyPressDurationAvg)) * 100;
-}
-
-
-function processConsistency(performanceOverTime, keyPressDurations) {
-    const [wpmAvg, accuracyAvg, keyPressDurationAvg] = processAverages(performanceOverTime, keyPressDurations);
-
-    console.log([wpmAvg, accuracyAvg]);
-
-    // Calculating the upper part of the standard deviation equation for wpm and accuracy
-    const [squaredDeviationSumForWpm, squaredDeviationSumForAcc] = performanceOverTime.reduce(
-        ([SDSwpm, SDSacc], [wpm, accuracy]) => [SDSwpm + ((wpm - wpmAvg)**2), SDSacc + ((accuracy - accuracyAvg)**2)]
-    );
-
-    // Standard Deviations of various attributes
-    const wpmStd = Math.sqrt(squaredDeviationSumForWpm / performanceOverTime.length);
-    const accuracyStd = Math.sqrt(squaredDeviationSumForAcc / performanceOverTime.length);
-
-    // lambda function for the consistency formula
-    let getConsistency = (avg, std) => {
-        return (1 - (std / avg)) * 100;
+        );
     }
 
-    const wpmConsistency = getConsistency(wpmAvg, wpmStd);
-    const accuracyConsistency = getConsistency(accuracyAvg, accuracyStd);
-    const keyPressDurationConsistency = processKPDConsistency(keyPressDurations);
+    return sumOfElements / n;
+}
+
+function processSquaredDeviationSum(lis, avg, lowerBound, upperBound, isMultiDimensional=false, index=0) {
+    let SDS = 0; 
+    let n = 0;
+
+    if (isMultiDimensional) {
+        lis.forEach(
+            (element) => {
+                if (!(element[index] < lowerBound || element[index] > upperBound)) {
+                    n++;
+                    SDS += (element[index] - avg)**2;
+                }
+            }
+        );
+    } else {
+        lis.forEach(
+            (element) => {
+                if (!(element < lowerBound || element > upperBound)) {
+                    n++;
+                    SDS += (element - avg)**2;
+                }
+            }
+        );
+    }
+
+    return [SDS, n];
+}
+
+function processConsistency(lis, isMultiDimensional=false, index=0) { 
+    console.log(`isMultiDimensional : ${isMultiDimensional}`);
+    console.log(`index : ${index}`);
+
+    // finds IQR
+    const [lowerBound, upperBound] = findInterQuartileRange(lis, index, isMultiDimensional);
+    console.log(`Lower Bound : ${lowerBound} | Upper Bound : ${upperBound}`);
+    
+    // gets the average
+    const avg = processAverage(lis, lowerBound, upperBound, isMultiDimensional, index);
+    console.log(`Average : ${avg}`);
+
+    // calculates the standard deviation
+    const [squaredDeviationSum, n] = processSquaredDeviationSum(lis, avg, lowerBound, upperBound, isMultiDimensional, index);
+    console.log(`Squared Deviation Sum : ${squaredDeviationSum}, sample size : ${n}`);
+    
+    const standardDeviation = Math.sqrt(squaredDeviationSum / n);
+    console.log(`Standard Deviation : ${standardDeviation}`);
+    
+    // returns the consistency 
+    return (1 - (standardDeviation / avg)) * 100;
+}
+
+function processConsistencyScore(wpmOverTime, accOvertime, keyPressDurations) {    
+    const wpmConsistency = processConsistency(wpmOverTime);
+    console.log(`WPM Consistency : ${wpmConsistency}`);
+    
+    const accuracyConsistency = processConsistency(accOvertime);
+    console.log(`Accuracy Consistency : ${accuracyConsistency}`);
+
+    const keyPressDurationConsistency = processConsistency(keyPressDurations, true, 1);
+    console.log(`Key Press Duration Consistency : ${keyPressDurationConsistency}`);
 
     const consistencyScore = (wpmConsistency * 0.7) + (keyPressDurationConsistency * 0.3);
+    console.log(`Final Consistency Score : ${consistencyScore}`);
+    
     return consistencyScore;
 }
 
@@ -298,8 +356,12 @@ function typingHandler(event) {
     }
 
     // Calculating the time by using the time of the first word typed and curruent time
-    let timeForWord = performance.now() - timeOfFirstWordTyped;
-    timeOfWords.push([event.key, timeForWord]);
+    if (nonoWords.has(event.key)) {
+        console.log('No No You Naughty Naughty');
+    } else {
+        let timeForWord = performance.now() - timeOfFirstWordTyped;
+        timeOfWords.push([event.key, timeForWord]);
+    }
 
     // key check with actual sentence
     if (event.key == sentence[wordPointerIndex]) {
