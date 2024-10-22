@@ -19,7 +19,6 @@ export default class CommonEnglishWords {
 
     static getCommonWordsRandom(numOfWords) {
         let common_words = this.getRandomArray();
-        console.log(common_words);
 
         if (numOfWords > common_words.length) {
             numOfWords = common_words.length;
@@ -40,7 +39,6 @@ export default class CommonEnglishWords {
             wordList.push(word);
         }
 
-        console.log(wordList);
         return wordList
     }
 }

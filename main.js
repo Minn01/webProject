@@ -183,9 +183,6 @@ function pickWeakWords(keyTime) {
 
 // This function is meant to process IQR 
 function findInterQuartileRange(lis, sortIdx=0, needsSortIdx=false) {
-    console.log(`needsSortIdx : ${needsSortIdx}`);
-    console.log(`sortIdx : ${sortIdx}`);
-    
     if (needsSortIdx) {
         lis.sort((a, b) => {
             return b[sortIdx] - a[sortIdx];
@@ -195,33 +192,26 @@ function findInterQuartileRange(lis, sortIdx=0, needsSortIdx=false) {
             return b - a;
         });
     }
-
-    console.log(lis);
     
     function median(lis) {
         const mid = Math.floor(lis.length / 2);
 
         if (needsSortIdx) {
             if (lis.length % 2 === 0) {
-                console.log((lis[mid - 1][sortIdx] + lis[mid][sortIdx]) / 2);
                 return (lis[mid - 1][sortIdx] + lis[mid][sortIdx]) / 2; 
             } else {
-                console.log(lis[mid][sortIdx]);
                 return lis[mid][sortIdx];
             }
         } else {
             if (lis.length % 2 === 0) {
-                console.log((lis[mid - 1] + lis[mid]) / 2);
                 return (lis[mid - 1] + lis[mid]) / 2; 
             } else {
-                console.log(lis[mid]);
                 return lis[mid];
             }
         }
     }
 
     const mid = Math.floor(lis.length / 2);
-    console.log(mid);
 
     let lowerHalf, upperHalf;
     if (lis.length % 2 === 0) {
@@ -293,23 +283,16 @@ function processSquaredDeviationSum(lis, avg, lowerBound, upperBound, isMultiDim
 }
 
 function processConsistency(lis, isMultiDimensional=false, index=0) { 
-    console.log(`isMultiDimensional : ${isMultiDimensional}`);
-    console.log(`index : ${index}`);
-
     // finds IQR
     const [lowerBound, upperBound] = findInterQuartileRange(lis, index, isMultiDimensional);
-    console.log(`Lower Bound : ${lowerBound} | Upper Bound : ${upperBound}`);
     
     // gets the average
     const avg = processAverage(lis, lowerBound, upperBound, isMultiDimensional, index);
-    console.log(`Average : ${avg}`);
 
     // calculates the standard deviation
     const [squaredDeviationSum, n] = processSquaredDeviationSum(lis, avg, lowerBound, upperBound, isMultiDimensional, index);
-    console.log(`Squared Deviation Sum : ${squaredDeviationSum}, sample size : ${n}`);
     
     const standardDeviation = Math.sqrt(squaredDeviationSum / n);
-    console.log(`Standard Deviation : ${standardDeviation}`);
     
     // returns the consistency 
     return (1 - (standardDeviation / avg)) * 100;
@@ -317,16 +300,13 @@ function processConsistency(lis, isMultiDimensional=false, index=0) {
 
 function processConsistencyScore(wpmOverTime, accOvertime, keyPressDurations) {    
     const wpmConsistency = processConsistency(wpmOverTime);
-    console.log(`WPM Consistency : ${wpmConsistency}`);
     
+    // accuracy consistency is yet to be utlizied 
     const accuracyConsistency = processConsistency(accOvertime);
-    console.log(`Accuracy Consistency : ${accuracyConsistency}`);
 
     const keyPressDurationConsistency = processConsistency(keyPressDurations, true, 1);
-    console.log(`Key Press Duration Consistency : ${keyPressDurationConsistency}`);
 
     const consistencyScore = (wpmConsistency * 0.7) + (keyPressDurationConsistency * 0.3);
-    console.log(`Final Consistency Score : ${consistencyScore}`);
     
     return consistencyScore;
 }
@@ -355,10 +335,8 @@ function typingHandler(event) {
         countingInterval = setInterval(countData, 1000)
     }
 
-    // Calculating the time by using the time of the first word typed and curruent time
-    if (nonoWords.has(event.key)) {
-        console.log('No No You Naughty Naughty');
-    } else {
+    // Calculating the time by using the time of the first word typed and current time
+    if (!nonoWords.has(event.key)) {
         let timeForWord = performance.now() - timeOfFirstWordTyped;
         timeOfWords.push([event.key, timeForWord]);
     }
