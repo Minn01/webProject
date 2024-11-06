@@ -34,11 +34,10 @@ body {
     display: none;
 }
 
-#square_for_now {
+#chart_container {
     margin-top: 5vh;
     width: 75vw;
     height: 30vh;
-    border: 0.5px solid white;
 }
 
 #results {

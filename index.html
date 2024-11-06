@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Typing Ace Official Website</title>
     <link rel="stylesheet" href="design.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <!-- the part that shows the settings for the typing -->
@@ -28,7 +29,12 @@
 
     <!-- the part that displays the results -->
      <div id="perf_display">
-        <div id="square_for_now"></div>
+        <!-- NOTE! the canvas size can't be changed from CSS refer to... -->
+        <!-- https://www.chartjs.org/docs/latest/configuration/responsive.html#important-note -->
+        <div id="chart_container">
+            <canvas id="perf_chart" style="width: 250px; height: 50px;"></canvas>
+        </div>
+
         <div id="results">
             <div id="main_results">
                 <div id="wpm_result" class="circle">

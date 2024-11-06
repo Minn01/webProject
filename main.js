@@ -3,11 +3,16 @@
 
 // IMPORTS
 import api_key from './apikey.js'
+import {calculatePerformance, processConsistencyScore, pickWeakWords,} from './processingUtils.js'
 import CommonEnglishWords from './wordLibraray.js';
-
 
 // key event listeners for the keyboard visual
 document.addEventListener("keydown", event => {
+    
+    if (event.key == "Escape") {
+        switchDisplays(1);
+    }
+
     let key = null;
 
     if (event.key == " ") {
@@ -48,11 +53,12 @@ let alreadyMistaken = false;
 let startedTyping = false;
 let timeOfWords = []; // this stores time it takes for pressing a key
 let wpmOverTime = [];
-let accOvertime = []
-let performanceOverTime = [] // this stores wpm and accuracy (in seconds)
+let accOvertime = [];
+let errorRate = [];
 let countingInterval = null; // suppose to store a setInterval() counting seconds
 let timeOfFirstWordTyped = 0;
-const nonoWords = new Set(['Shift', 'BackSpace', 'Enter', 'Tab', 'Alt', 'Meta', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'ArrowRight']);
+let perf_chart = null;
+const nonoWords = new Set(['Shift', 'BackSpace', 'Enter', 'Tab', 'Alt', 'Meta', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'ArrowRight', 'Escape']);
 
 // Documents
 const start_btn = document.getElementById("start_btn");
@@ -81,12 +87,21 @@ async function retrieveRandomWords(numOfWords, minWordLength, maxWordLength, wor
 }
 
 function switchDisplays(displayMode) {
+    // switch display to the typing screen
     if (displayMode == 0) {
         start_btn.style.display = "none";
         type_area.style.display = "flex";
+
+    // switch display back to the start screen
     } else if (displayMode == 1) {
         start_btn.style.display = "inline-block";
         type_area.style.display = "none";
+        perf_display.style.display = "none"
+        keyboard_doc.style.display = "flex";
+        // ensure typing handler is closed for optimization
+        document.removeEventListener('keydown', typingHandler);
+    
+        // switch display to the performance screen
     } else if (displayMode == 2) {
         type_area.style.display = "none";
         keyboard_doc.style.display = "none"
@@ -107,13 +122,8 @@ function endTyping() {
     // Removes the key listener for any typing inputs 
     document.removeEventListener('keydown', typingHandler);
 
-    // sorting the key press duration on their time which is 2nd index
-    timeOfWords.sort((a, b) => {
-        return b[1] - a[1];
-    });
-
     // Calculate wpm and and accuracy
-    const typingPerformance = calculatePerformance(startedTypingTime, endedTypingTime, sentence.length);
+    const typingPerformance = calculatePerformance(startedTypingTime, endedTypingTime, sentence.length, numOfMistakes);
 
     // Picking the 5 weakest words among the key press durations
     const weakWords = pickWeakWords(timeOfWords);
@@ -122,12 +132,19 @@ function endTyping() {
     
     // Making the actual change of numbers to what is being displayed
     displayPerformance(typingPerformance, weakWords, consistencyScore);
+    
+    // function that draws the chart
+    drawChart(
+        [wpmOverTime], 
+        wpmOverTime.length, 
+        ["wpm"], 
+        ["rgb(255, 255, 255)"], 
+        1,
+        ["line"]
+    );
 
-    // Resets pointer to the beginning
-    wordPointerIndex = 0;
-
-    // Resetting the value 
-    startedTyping = false;
+    // TODO Error rate yet to be utilized
+    
 }
 
 function displayPerformance(typingPerformance, weakWords, consistencyScore) {
@@ -152,175 +169,119 @@ function displayPerformance(typingPerformance, weakWords, consistencyScore) {
     
 }
 
+function drawChart(timeSeriesData, seriesLength, seriesNames, seriesColors, mainSeriesNum, chartTypeList) {
+    let seriesIndex = 0;
+    let dataSeriesList = [];
+
+    timeSeriesData.forEach(seriesData => {
+
+        if (seriesData.length != seriesLength) {
+            throw new Error("Error! every series must have the same length");
+        }
+
+        const dataConfig = {
+            // the label names should be in a list accordingly
+            label: seriesNames[seriesIndex],
+
+            // you can specify specific chart type for different  series
+            type: chartTypeList[seriesIndex],
+
+            // border config
+            borderColor: seriesColors[seriesIndex],
+            borderWidth: 1,
+
+            // data point config
+            pointBackgroundColor: (seriesIndex == mainSeriesNum-1) ? "rgb(0, 0, 0)" : seriesColors[seriesIndex],
+            pointBorderWidth: 1,
+            
+            // the data displayed in the chart added here
+            data: seriesData,
+        }
+
+        seriesIndex++;
+        dataSeriesList.push(dataConfig);
+    });
+    
+
+    // TODO this needs to be optimized
+    let timeSeries = [];
+    for (let i = 0; i < seriesLength; i++) {
+        timeSeries.push(i);
+    }
+
+    // refer to chart.js documentation for config
+    // https://www.chartjs.org/docs/latest/
+
+    const ctx = document.getElementById("perf_chart");
+
+    perf_chart = new Chart(ctx, {
+        // type: 'line',
+        data: {
+            // y-axis data series added here
+            labels: timeSeries,
+            // all the data series are added here
+            datasets: dataSeriesList
+        },
+        options: {
+            plugins: {
+                legend: {display: false}
+            },
+
+            scales: {
+                x: {
+                    // not necessary but added anyways
+                    border: {display: true},
+                    grid: {
+                        display: true,
+                        color: "rgba(255, 255, 255, 0.15)"
+                    }
+                },
+
+                y: {
+                    // not necessary but added anyways
+                    border: {display: true},
+                    grid: {
+                        display: true,
+                        color: "rgba(255, 255, 255, 0.15)"
+                    }
+                }
+            }
+        }
+      });
+}
+
 function countData() {
     // this function repeats second by second
-    let [wpmPerformance, accPerformance] = calculatePerformance(startedTypingTime, performance.now(), wordPointerIndex+1);
+    let [wpmPerformance, accPerformance, errors] = calculatePerformance(startedTypingTime, performance.now(), wordPointerIndex+1, numOfMistakes);
 
     // the data is stored in a list
     wpmOverTime.push(wpmPerformance);
     accOvertime.push(accPerformance);
+    errorRate.push(errors);
 }
 
-function pickWeakWords(keyTime) {
-    let weakWords = new Set();
+function initialize() {
+    sentence = wordsList.join(" ");
+    type_area.textContent = sentence;
 
-    function pickWords(n, wordIdx=0) {
-        if (n == 0 || wordIdx >= keyTime.length) {
-          return;
-        } 
-      
-        if (weakWords.has(keyTime[wordIdx][0])) {
-          return pickWords(n, wordIdx+1);
-        } else {
-          weakWords.add(keyTime[wordIdx][0]);
-          return pickWords(n-1, wordIdx+1);
-        }
-      }
+    numOfMistakes = 0;
+    alreadyMistaken = false;
 
-      pickWords(5);
-      return weakWords;
-}
+    // Resets pointer to the beginning
+    wordPointerIndex = 0;
 
-// This function is meant to process IQR 
-function findInterQuartileRange(lis, sortIdx=0, needsSortIdx=false) {
-    if (needsSortIdx) {
-        lis.sort((a, b) => {
-            return b[sortIdx] - a[sortIdx];
-        });
-    } else {
-        lis.sort((a, b) => {
-            return b - a;
-        });
-    }
-    
-    function median(lis) {
-        const mid = Math.floor(lis.length / 2);
+    // Resetting the value 
+    startedTyping = false;
 
-        if (needsSortIdx) {
-            if (lis.length % 2 === 0) {
-                return (lis[mid - 1][sortIdx] + lis[mid][sortIdx]) / 2; 
-            } else {
-                return lis[mid][sortIdx];
-            }
-        } else {
-            if (lis.length % 2 === 0) {
-                return (lis[mid - 1] + lis[mid]) / 2; 
-            } else {
-                return lis[mid];
-            }
-        }
+    // Destroy exsisting chart 
+    if (perf_chart != null) {
+        perf_chart.destroy();
     }
 
-    const mid = Math.floor(lis.length / 2);
-
-    let lowerHalf, upperHalf;
-    if (lis.length % 2 === 0) {
-        lowerHalf = lis.slice(mid);    // Lower half
-        upperHalf = lis.slice(0, mid); // Upper half
-    } else {
-        lowerHalf = lis.slice(mid+1);    // Lower half (exclude the median)
-        upperHalf = lis.slice(0, mid);   // Upper half (exclude the median)
-    }
-
-    const [q1, q3] = [median(lowerHalf), median(upperHalf)];
-    const iqr = q3 - q1;
-
-    return [(q1 - (1.5*iqr)), (q3 + (1.5*iqr))];
-}
-
-function processAverage(lis, lowerBound, upperBound, isMultiDimensional=false, index=0) {
-    let sumOfElements = 0;
-    let n = 0;
-
-    if (isMultiDimensional) {
-        lis.forEach(
-            (element) => {
-                if (!(element[index] < lowerBound || element[index] > upperBound)) {
-                    n++;
-                    sumOfElements += element[index];
-                }
-            }
-        );
-    } else {
-        lis.forEach(
-            (element) => {
-                if (!(element < lowerBound || element > upperBound)) {
-                    n++;
-                    sumOfElements += element;
-                }
-            }
-        );
-    }
-
-    return sumOfElements / n;
-}
-
-function processSquaredDeviationSum(lis, avg, lowerBound, upperBound, isMultiDimensional=false, index=0) {
-    let SDS = 0; 
-    let n = 0;
-
-    if (isMultiDimensional) {
-        lis.forEach(
-            (element) => {
-                if (!(element[index] < lowerBound || element[index] > upperBound)) {
-                    n++;
-                    SDS += (element[index] - avg)**2;
-                }
-            }
-        );
-    } else {
-        lis.forEach(
-            (element) => {
-                if (!(element < lowerBound || element > upperBound)) {
-                    n++;
-                    SDS += (element - avg)**2;
-                }
-            }
-        );
-    }
-
-    return [SDS, n];
-}
-
-function processConsistency(lis, isMultiDimensional=false, index=0) { 
-    // finds IQR
-    const [lowerBound, upperBound] = findInterQuartileRange(lis, index, isMultiDimensional);
-    
-    // gets the average
-    const avg = processAverage(lis, lowerBound, upperBound, isMultiDimensional, index);
-
-    // calculates the standard deviation
-    const [squaredDeviationSum, n] = processSquaredDeviationSum(lis, avg, lowerBound, upperBound, isMultiDimensional, index);
-    
-    const standardDeviation = Math.sqrt(squaredDeviationSum / n);
-    
-    // returns the consistency 
-    return (1 - (standardDeviation / avg)) * 100;
-}
-
-function processConsistencyScore(wpmOverTime, accOvertime, keyPressDurations) {    
-    const wpmConsistency = processConsistency(wpmOverTime);
-    
-    // accuracy consistency is yet to be utlizied 
-    const accuracyConsistency = processConsistency(accOvertime);
-
-    const keyPressDurationConsistency = processConsistency(keyPressDurations, true, 1);
-
-    const consistencyScore = (wpmConsistency * 0.7) + (keyPressDurationConsistency * 0.3);
-    
-    return consistencyScore;
-}
-
-
-function calculatePerformance(startedTypingTime, endedTypingTime, charCount) {
-    let timeTakenInSeconds = (endedTypingTime - startedTypingTime)/1000
-    let timeTakenInMinutes = timeTakenInSeconds / 60;
-    let totalWords = charCount / 5; // it's usually divided by 5
-    let wpm = totalWords / timeTakenInMinutes;
-
-    let accuracy = ((charCount - numOfMistakes) / charCount) * 100
-    
-    return [wpm, accuracy];
+    wpmOverTime = []; 
+    accOvertime = [];
+    errorRate = []; 
+    timeOfWords = [];
 }
 
 // Function to handle the checks for typing
@@ -335,8 +296,9 @@ function typingHandler(event) {
         countingInterval = setInterval(countData, 1000)
     }
 
-    // Calculating the time by using the time of the first word typed and current time
+    // Any keys not meant to be counted are skiped
     if (!nonoWords.has(event.key)) {
+        // Calculating the time by using the time of the first word typed and current time
         let timeForWord = performance.now() - timeOfFirstWordTyped;
         timeOfWords.push([event.key, timeForWord]);
     }
@@ -372,14 +334,10 @@ async function start_typing() {
     if (usingAPI) {
         wordsList = await retrieveRandomWords(10, 2, 7, 3);
     } else {
-        wordsList = CommonEnglishWords.getCommonWordsRandom(15);
+        wordsList = CommonEnglishWords.getCommonWordsRandom(10);
     }
     
-    sentence = wordsList.join(" ");
-    type_area.textContent = sentence;
-
-    numOfMistakes = 0;
-    alreadyMistaken = false;
+    initialize();
     switchDisplays(0);
     document.addEventListener('keydown', typingHandler);
 }
